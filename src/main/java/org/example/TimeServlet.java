@@ -5,6 +5,10 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.thymeleaf.TemplateEngine;
+import org.thymeleaf.context.Context;
+import org.thymeleaf.templatemode.TemplateMode;
+import org.thymeleaf.templateresolver.FileTemplateResolver;
 
 import java.io.IOException;
 import java.time.ZoneId;
@@ -16,6 +20,20 @@ public class TimeServlet extends HttpServlet {
 
     private static final String DEFAULT_TIMEZONE = "UTC";
     private static final String LAST_TIMEZONE = "lastTimezone";
+
+    private TemplateEngine engine;
+
+    @Override
+    public void init() {
+        engine = new TemplateEngine();
+
+        FileTemplateResolver resolver = new FileTemplateResolver();
+        resolver.setPrefix(getServletContext().getRealPath("/templates/"));
+        resolver.setSuffix(".html");
+        resolver.setTemplateMode(TemplateMode.HTML);
+
+        engine.setTemplateResolver(resolver);
+    }
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
@@ -39,7 +57,18 @@ public class TimeServlet extends HttpServlet {
         ZoneId zoneId = ZoneId.of(timezone != null ? timezone : DEFAULT_TIMEZONE);
         ZonedDateTime now = ZonedDateTime.now(zoneId);
 
-        DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z");
-        resp.getWriter().write(dtf.format(now));
+        DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+        Context context = new Context();
+        context.setVariable("dateTime", dtf.format(now));
+        context.setVariable("zoneId", zoneId.getId());
+
+        engine.process("time", context, resp.getWriter());
+        resp.getWriter().close();
+    }
+
+    @Override
+    public void destroy() {
+        engine = null;
     }
 }
